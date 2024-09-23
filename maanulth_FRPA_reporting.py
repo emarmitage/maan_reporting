@@ -239,70 +239,52 @@ def load_queries():
         """
     
     sql['recr_poly'] = """
-            SELECT rcp.MAP_LABEL,
-                  ROUND(SDO_GEOM.SDO_AREA(rcpv.GEOMETRY, 0.005, 'unit=HECTARE'), 2) AREA_HA,
-                  rcpv.FILE_STATUS_CODE,
-                  rcpv.PROJECT_TYPE,
-                  rcpv.LIFE_CYCLE_STATUS_CODE,
-                  rcpv.PROJECT_ESTABLISHED_DATE,
-                  iha.TREATY_SIDE_AGREEMENT_ID as IHA_ID,
-                  CASE 
-                      WHEN rcpv.PROJECT_ESTABLISHED_DATE >= rcp.CHANGE_TIMESTAMP3
+            SELECT rcpv.MAP_LABEL,
+                ROUND(SDO_GEOM.SDO_AREA(rcpv.GEOMETRY, 0.005, 'unit=HECTARE'), 2) AREA_HA,
+                rcpv.FILE_STATUS_CODE,
+                rcpv.PROJECT_TYPE,
+                rcpv.LIFE_CYCLE_STATUS_CODE,
+                rcpv.PROJECT_ESTABLISHED_DATE,
+                iha.TREATY_SIDE_AGREEMENT_ID as IHA_ID,
+                CASE 
+                    WHEN rcpv.AMENDMENT_ID = 0
                         THEN 'New' 
-                          ELSE 'Amended' 
-                            END AS NEW_AMEND,
-                  CASE 
+                            ELSE 'Amended' 
+                                END AS NEW_AMEND,
+                CASE 
                     WHEN rcpv.GEOGRAPHIC_DISTRICT_CODE = 'DSI' 
-                      THEN 'South' 
-                        ELSE 'North' 
-                          END AS REGION,
-                  rcp.ENTRY_TIMESTAMP,
-                  rcp.UPDATE_TIMESTAMP,
-                  rcp.CHANGE_TIMESTAMP3,
-                  ldu.LANDSCAPE_UNIT_NAME as LANDSCAPE_UNIT,
-                  SDO_UTIL.TO_WKTGEOMETRY(rcpv.GEOMETRY) SHAPE 
+                        THEN 'South' 
+                            ELSE 'North' 
+                                END AS REGION,
+                ldu.LANDSCAPE_UNIT_NAME as LANDSCAPE_UNIT,
+                SDO_UTIL.TO_WKTGEOMETRY(rcpv.GEOMETRY) SHAPE 
 
-            FROM (
-                SELECT  rcpp.FOREST_FILE_ID as MAP_LABEL,
-                        rcpp.RETIREMENT_DATE,
-                        rcpp.ENTRY_USERID,  
-                        rcpp.UPDATE_USERID,
-                        rcpp.ENTRY_TIMESTAMP,
-                        rcpp.UPDATE_TIMESTAMP,
-                        rcpp.CHANGE_TIMESTAMP3
-                  
-                FROM WHSE_FOREST_TENURE.FTEN_RECREATION_POLY rcpp
-                    JOIN WHSE_ADMIN_BOUNDARIES.PIP_CONSULTATION_AREAS_SP pip
-                        ON SDO_RELATE (rcpp.GEOMETRY, pip.SHAPE, 'mask=ANYINTERACT') = 'TRUE'
-                        AND pip.CONTACT_ORGANIZATION_NAME = q'[Maa-nulth First Nations]'
-                    )rcp
-                  
-                    JOIN WHSE_FOREST_TENURE.FTEN_RECREATION_POLY_SVW rcpv
-                    ON rcp.MAP_LABEL = rcpv.FOREST_FILE_ID
+            FROM WHSE_FOREST_TENURE.FTEN_RECREATION_POLY_SVW rcpv
 
-                    -- Add IHAs
-                    LEFT JOIN WHSE_LEGAL_ADMIN_BOUNDARIES.FNT_TREATY_SIDE_AGREEMENTS_SP iha
-                        ON SDO_RELATE (iha.GEOMETRY, rcpv.GEOMETRY, 'mask=ANYINTERACT') = 'TRUE'
-                            AND iha.AREA_TYPE = 'Important Harvest Area'
-                            AND iha.STATUS = 'ACTIVE'
+            -- Join with consulation Areas
+            JOIN WHSE_ADMIN_BOUNDARIES.PIP_CONSULTATION_AREAS_SP pip
+                ON SDO_RELATE (rcpv.GEOMETRY, pip.SHAPE, 'mask=ANYINTERACT') = 'TRUE'
+                AND pip.CONTACT_ORGANIZATION_NAME = q'[Maa-nulth First Nations]'
 
-                    -- Add Landscape Units
-                    JOIN WHSE_LAND_USE_PLANNING.RMP_LANDSCAPE_UNIT_SVW ldu
-                        ON SDO_RELATE(ldu.GEOMETRY, rcpv.GEOMETRY, 'mask=ANYINTERACT') = 'TRUE'
-                        AND ldu.LANDSCAPE_UNIT_NAME IN ({lus})
+            -- Add IHAs
+            LEFT JOIN WHSE_LEGAL_ADMIN_BOUNDARIES.FNT_TREATY_SIDE_AGREEMENTS_SP iha
+                ON SDO_RELATE (iha.GEOMETRY, rcpv.GEOMETRY, 'mask=ANYINTERACT') = 'TRUE'
+                    AND iha.AREA_TYPE = 'Important Harvest Area'
+                    AND iha.STATUS = 'ACTIVE'
+
+            -- Add Landscape Units
+            JOIN WHSE_LAND_USE_PLANNING.RMP_LANDSCAPE_UNIT_SVW ldu
+                ON SDO_RELATE(ldu.GEOMETRY, rcpv.GEOMETRY, 'mask=ANYINTERACT') = 'TRUE'
+                AND ldu.LANDSCAPE_UNIT_NAME IN ({lus})
               
-                WHERE rcpv.LIFE_CYCLE_STATUS_CODE = 'ACTIVE'
-                    AND rcp.RETIREMENT_DATE IS NULL
-                    AND (rcp.UPDATE_USERID NOT LIKE '%DATAFIX%' AND rcp.UPDATE_USERID NOT LIKE '%datafix%')
-                    AND (rcp.CHANGE_TIMESTAMP3 BETWEEN TO_DATE('01/09/{prvy}', 'DD/MM/YYYY') AND TO_DATE('31/08/{y}', 'DD/MM/YYYY') 
-                        OR 
-                        rcpv.PROJECT_ESTABLISHED_DATE BETWEEN TO_DATE('01/09/{prvy}', 'DD/MM/YYYY') AND TO_DATE('31/08/{y}', 'DD/MM/YYYY'))
+            WHERE rcpv.LIFE_CYCLE_STATUS_CODE = 'ACTIVE'
+                AND rcpv.PROJECT_ESTABLISHED_DATE BETWEEN TO_DATE('01/09/{prvy}', 'DD/MM/YYYY') AND TO_DATE('31/08/{y}', 'DD/MM/YYYY')
 
-                ORDER BY rcp.MAP_LABEL
-                """ 
+            ORDER BY rcpv.MAP_LABEL
+            """ 
     
     sql['recr_line'] = """
-            SELECT rcp.MAP_LABEL,
+            SELECT rcpv.MAP_LABEL,
                 rcpv.FEATURE_LENGTH AS LENGTH_KM,
                 rcpv.FILE_STATUS_CODE,
                 rcpv.PROJECT_TYPE,
@@ -310,7 +292,7 @@ def load_queries():
                 rcpv.PROJECT_ESTABLISHED_DATE,
                 iha.TREATY_SIDE_AGREEMENT_ID as IHA_ID,
                 CASE 
-                    WHEN rcpv.PROJECT_ESTABLISHED_DATE >= rcp.CHANGE_TIMESTAMP3
+                    WHEN rcpv.AMENDMENT_ID = 0
                       THEN 'New' 
                         ELSE 'Amended' 
                           END AS NEW_AMEND,
@@ -319,49 +301,30 @@ def load_queries():
                     THEN 'South' 
                       ELSE 'North' 
                         END AS REGION,
-                rcp.ENTRY_TIMESTAMP,
-                rcp.UPDATE_TIMESTAMP,
-                rcp.CHANGE_TIMESTAMP3,
                 ldu.LANDSCAPE_UNIT_NAME as LANDSCAPE_UNIT,
                 SDO_UTIL.TO_WKTGEOMETRY(rcpv.GEOMETRY) SHAPE 
 
-            FROM (
-                SELECT  rcpp.FOREST_FILE_ID || ' ' || rcpp.SECTION_ID AS MAP_LABEL,
-                        rcpp.RETIREMENT_DATE,
-                        rcpp.ENTRY_USERID,  
-                        rcpp.UPDATE_USERID,
-                        rcpp.ENTRY_TIMESTAMP,
-                        rcpp.UPDATE_TIMESTAMP,
-                        rcpp.CHANGE_TIMESTAMP3
-                
-                FROM WHSE_FOREST_TENURE.FTEN_RECREATION_LINE rcpp
-                JOIN WHSE_ADMIN_BOUNDARIES.PIP_CONSULTATION_AREAS_SP pip
-                    ON SDO_RELATE (rcpp.GEOMETRY, pip.SHAPE, 'mask=ANYINTERACT') = 'TRUE'
-                        AND pip.CONTACT_ORGANIZATION_NAME = q'[Maa-nulth First Nations]'
-                )rcp
-                
-                JOIN WHSE_FOREST_TENURE.FTEN_RECREATION_LINES_SVW rcpv
-                ON rcp.MAP_LABEL = rcpv.MAP_LABEL
+            FROM WHSE_FOREST_TENURE.FTEN_RECREATION_LINES_SVW rcpv
 
-                -- Add IHAs
-                LEFT JOIN WHSE_LEGAL_ADMIN_BOUNDARIES.FNT_TREATY_SIDE_AGREEMENTS_SP iha
-                    ON SDO_RELATE (iha.GEOMETRY, rcpv.GEOMETRY, 'mask=ANYINTERACT') = 'TRUE'
-                        AND iha.AREA_TYPE = 'Important Harvest Area'
-                        AND iha.STATUS = 'ACTIVE'
+            JOIN WHSE_ADMIN_BOUNDARIES.PIP_CONSULTATION_AREAS_SP pip
+                ON SDO_RELATE (rcpv.GEOMETRY, pip.SHAPE, 'mask=ANYINTERACT') = 'TRUE'
+                    AND pip.CONTACT_ORGANIZATION_NAME = q'[Maa-nulth First Nations]'
 
-                -- Add Landscape Units
-                JOIN WHSE_LAND_USE_PLANNING.RMP_LANDSCAPE_UNIT_SVW ldu
-                    ON SDO_RELATE(ldu.GEOMETRY, rcpv.GEOMETRY, 'mask=ANYINTERACT') = 'TRUE'
-                    AND ldu.LANDSCAPE_UNIT_NAME IN ({lus})
+            -- Add IHAs
+            LEFT JOIN WHSE_LEGAL_ADMIN_BOUNDARIES.FNT_TREATY_SIDE_AGREEMENTS_SP iha
+                ON SDO_RELATE (iha.GEOMETRY, rcpv.GEOMETRY, 'mask=ANYINTERACT') = 'TRUE'
+                    AND iha.AREA_TYPE = 'Important Harvest Area'
+                    AND iha.STATUS = 'ACTIVE'
+
+            -- Add Landscape Units
+            JOIN WHSE_LAND_USE_PLANNING.RMP_LANDSCAPE_UNIT_SVW ldu
+                ON SDO_RELATE(ldu.GEOMETRY, rcpv.GEOMETRY, 'mask=ANYINTERACT') = 'TRUE'
+                AND ldu.LANDSCAPE_UNIT_NAME IN ({lus})
             
             WHERE rcpv.LIFE_CYCLE_STATUS_CODE = 'ACTIVE'
-                AND rcp.RETIREMENT_DATE IS NULL
-                AND (rcp.UPDATE_USERID NOT LIKE '%DATAFIX%' AND rcp.UPDATE_USERID NOT LIKE '%datafix%')
-                AND (rcp.CHANGE_TIMESTAMP3 BETWEEN TO_DATE('01/09/{prvy}', 'DD/MM/YYYY') AND TO_DATE('31/08/{y}', 'DD/MM/YYYY') 
-                    OR 
-                    rcpv.PROJECT_ESTABLISHED_DATE BETWEEN TO_DATE('01/09/{prvy}', 'DD/MM/YYYY') AND TO_DATE('31/08/{y}', 'DD/MM/YYYY'))
+                AND rcpv.PROJECT_ESTABLISHED_DATE BETWEEN TO_DATE('01/09/{prvy}', 'DD/MM/YYYY') AND TO_DATE('31/08/{y}', 'DD/MM/YYYY')
 
-            ORDER BY rcp.MAP_LABEL
+            ORDER BY rcpv.MAP_LABEL
             """ 
     
     return sql
