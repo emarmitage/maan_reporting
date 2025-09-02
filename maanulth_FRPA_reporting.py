@@ -16,7 +16,7 @@
 #               Emma Armitage - GeoBC, Victoria
 #
 # Created:     23-01-2023
-# Updated:     12-09-2024
+# Updated:     02-09-2025
 #-------------------------------------------------------------------------------
 
 import warnings
@@ -355,11 +355,10 @@ def connect_to_DB (username,password,hostname):
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
         return
-    
-    return connection
 
 def esri_to_gdf (aoi):
     """Returns a Geopandas file (gdf) based on an ESRI format vector (shp or featureclass/gdb)"""
+    gpd.options.io_engine = "pyogrio"
     
     if '.shp' in aoi: 
         gdf = gpd.read_file(aoi)
@@ -369,7 +368,7 @@ def esri_to_gdf (aoi):
         gdb = l[0] + '.gdb'
         
         fc = os.path.basename(aoi)
-        gdf = gpd.read_file(filename=gdb, layer=fc)
+        gdf = gpd.read_file(gdb, layer=fc)
         
     else:
         raise Exception ('Format not recognized. Please provide a shp or featureclass (gdb)!')
