@@ -23,7 +23,6 @@ import warnings
 warnings.simplefilter(action='ignore')
 
 import os
-# import cx_Oracle
 import oracledb
 import pandas as pd
 import geopandas as gpd
