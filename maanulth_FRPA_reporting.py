@@ -23,7 +23,8 @@ import warnings
 warnings.simplefilter(action='ignore')
 
 import os
-import cx_Oracle
+# import cx_Oracle
+import oracledb
 import pandas as pd
 import geopandas as gpd
 import numpy as np
@@ -331,12 +332,29 @@ def load_queries():
 
 def connect_to_DB (username,password,hostname):
     """ Returns a connection to Oracle database"""
-    try:
-        connection = cx_Oracle.connect(username, password, hostname, encoding="UTF-8")
-        print  ("...Successfuly connected to the database")
+    # try:
+    # connection = cx_Oracle.connect(username, password, hostname, encoding="UTF-8")
+    # connection = oracledb.connect(user=username, password=password, dsn=hostname)
+    # print  ("...Successfuly connected to the database")
     
-    except:
-        raise Exception('...Connection failed! Please verifiy your login parameters')
+    # except:
+    #     raise Exception('...Connection failed! Please verifiy your login parameters')
+
+    try:
+        connection = oracledb.connect(
+            user=username,
+            password=password,
+            dsn=hostname
+        )
+        print("Connected to Oracle successfully")
+        return connection
+
+    except oracledb.DatabaseError as e:
+        print(f"Database connection error: {e}")
+        return
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        return
     
     return connection
 
@@ -351,7 +369,7 @@ def esri_to_gdf (aoi):
         gdb = l[0] + '.gdb'
         
         fc = os.path.basename(aoi)
-        gdf = gpd.read_file(filename= gdb, layer= fc)
+        gdf = gpd.read_file(filename=gdb, layer=fc)
         
     else:
         raise Exception ('Format not recognized. Please provide a shp or featureclass (gdb)!')
@@ -500,19 +518,19 @@ def generate_spatial_files(gdf, workspace, year, k):
 def main():
     print ('\nConnecting to BCGW...')
     hostname = 'bcgw.bcgov/idwprod1.bcgov'
-    bcgw_user = '' ################## CHANGE THIS################
-    bcgw_pwd = '' ################## CHANGE THIS################
+    bcgw_user = '' ################## CHANGE THIS ################
+    bcgw_pwd = '' ################## CHANGE THIS ################
     
     connection = connect_to_DB(hostname=hostname, username=bcgw_user, password=bcgw_pwd)
 
     # reporting year
-    year = 2024 ################## CHANGE THIS################
+    year = 2025 ################## CHANGE THIS ################
     
     print ("\nLoad the SQL queries...")
     sql = load_queries()
     
     print ("\nRun the process")
-    workspace = r'' ################## CHANGE THIS################
+    workspace = r'\\spatialfiles.bcgov\srm\gss\projects\gr_2024_73_maanulth_roa\deliverables\reports\frpa_auths_20250902' ################## CHANGE THIS ################
     
     # landscape units geodatabase
     fn_fc= r'\\spatialfiles.bcgov\work\lwbc\visr\Workarea\moez_labiadh\DATASETS\Maa-nulth.gdb\PreTreatyFirstNationAreas'
